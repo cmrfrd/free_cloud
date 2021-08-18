@@ -1,0 +1,50 @@
+* Free cloud ⛅
+
+  By: Alexander Comerford (alex@taoa.io)
+
+  This repo is a tutorial/guide for provisioning free cloud resources. Currently
+  only one resource is ready for use, but more will be provided in the future
+  (ex: gcloud, aws, etc.)
+
+** IBM cloud bucket
+
+   For provisioning a free 25GB IBM cloud bucket, do the following:
+
+   Update and rename ~.env.example~ to ~.env~ with your associated IBM cloud credentials
+
+   Next run the following commands, (dependencies ~jq~ and ~docker~)
+   
+   #+BEGIN_SRC sh
+     ## Source your env variables with your credentials
+     source .env
+     
+     ## Get the api key
+     export IC_API_KEY_OUTPUT=$(
+       docker run --rm --env-file <(env | grep IBM) -it ibmcom/ibm-cloud-developer-tools-amd64 \
+              sh -c '\
+                ibmcloud login -u $IBM_CLOUD_USERNAME -p $IBM_CLOUD_PASSWORD -r $IBM_CLOUD_REGION \
+                && apk add jq \
+                && export IC_API_KEY_OUTPUT=$(ibmcloud iam api-key-create ${IBM_CLOUD_APIKEY_NAME} --output json) \
+                && echo $IC_API_KEY_OUTPUT\
+              ' \
+         | tail -n 1)
+     export IC_API_KEY=$(echo ${IC_API_KEY_OUTPUT} | jq -r ".apikey")
+     
+     ## Name the resource group and bucket
+     export TF_VAR_resource_group_name='Default'
+     export TF_VAR_bucket_name='bucket'
+     
+     ## Apply!
+     terraform init
+     terraform apply
+   #+END_SRC
+
+   #+RESULTS:
+
+   You can get the access and secret key with the following
+
+   #+BEGIN_SRC sh
+     export ACCESSKEYID=$(terraform show -json | jq -r '.. | ."cos_hmac_keys.access_key_id"? // empty')
+     export AWSSECRETACCESSKEY=$(terraform show -json | jq -r '.. | ."cos_hmac_keys.secret_access_key"? // empty')
+     export ENDPOINT=s3.us.cloud-object-storage.appdomain.cloud
+   #+END_SRC
